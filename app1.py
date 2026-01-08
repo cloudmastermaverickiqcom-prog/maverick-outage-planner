@@ -8,32 +8,40 @@ import random
 # --- PAGE CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="MaverickIQ | Fleet Command", page_icon="⚡")
 
-# --- CUSTOM CSS (Layout & Hierarchy) ---
+# --- CUSTOM CSS (Light Theme + Dark Cards) ---
 st.markdown("""
 <style>
-    /* 1. FIX THE "BLACK BAR" ISSUE: Push content down */
+    /* 1. LAYOUT & PADDING */
     .block-container { 
         padding-top: 4rem; 
         padding-bottom: 2rem; 
     }
     
-    /* GLOBAL TEXT COLORS */
-    h1, h2, h3, h4, p, span, div { color: #F8FAFC; }
-    .metric-label { color: #94a3b8 !important; }
+    /* 2. GLOBAL TEXT COLORS (For Light Background) */
+    h1, h2, h3, h4, h5, h6 { color: #0f172a !important; } /* Dark Slate */
+    p, div, span { color: #334155; } /* Slate 700 */
+    .metric-label { color: #64748b !important; }
     
-    /* --- CARD STYLES --- */
+    /* 3. CARD STYLES (KEEPING THEM DARK) */
     .card-container {
-        background-color: #1e293b;
+        background-color: #1e293b; /* Dark Slate Background */
         border-radius: 10px;
         border: 1px solid #334155;
         padding: 15px;
         height: 100%;
         transition: all 0.2s;
     }
+    
+    /* FORCE TEXT INSIDE CARDS TO BE LIGHT */
+    .card-container h1, .card-container h2, .card-container h3, .card-container h4, 
+    .card-container p, .card-container span, .card-container div { 
+        color: #F8FAFC !important; 
+    }
+    
     .card-container:hover {
         border-color: #3B82F6;
         transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
     
     /* Large Card (Outages) */
@@ -48,21 +56,38 @@ st.markdown("""
         text-align: center;
     }
 
-    /* BADGES */
+    /* 4. TAB STYLING (For Light Background) */
+    .stTabs [data-baseweb="tab"] {
+        height: 50px; 
+        background-color: transparent; 
+        border-radius: 4px 4px 0px 0px;
+        gap: 1px; 
+        padding-top: 10px; 
+        padding-bottom: 10px; 
+        color: #64748b; /* Inactive Gray */
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: transparent; 
+        border-bottom: 2px solid #2563EB; 
+        color: #2563EB; /* Active Blue */
+        font-weight: bold;
+    }
+
+    /* 5. BADGES */
     .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
     .badge-planned { background: rgba(217, 119, 6, 0.2); color: #fbbf24; border: 1px solid #d97706; }
     .badge-unplanned { background: rgba(220, 38, 38, 0.2); color: #f87171; border: 1px solid #dc2626; }
     .badge-running { background: rgba(5, 150, 105, 0.2); color: #34d399; border: 1px solid #059669; }
 
-    /* --- NAVIGATION BAR STYLING --- */
+    /* 6. NAVIGATION BAR STYLING */
     div[data-testid="stButton"] button {
         width: 100%;
         border-radius: 6px;
         font-weight: bold;
-        border: 1px solid #475569;
-        color: #f1f5f9;
-        background-color: #334155;
-        transition: background-color 0.2s;
+        border: 1px solid #cbd5e1; /* Light Border */
+        color: #0f172a; /* Dark Text */
+        background-color: #f1f5f9; /* Light Gray BG */
+        transition: all 0.2s;
     }
     div[data-testid="stButton"] button:hover {
         border-color: #3B82F6;
@@ -100,55 +125,25 @@ def get_long_term_schedule():
     """Generates a 2-year lookahead for all 7 sites."""
     schedule = []
     base_date = datetime.now()
-    
-    # Define Outage Windows (Seasons)
     seasons = [
-        {"name": "Fall 2026", "start": base_date + timedelta(days=240)}, # Sep 2026
-        {"name": "Spring 2027", "start": base_date + timedelta(days=420)}, # Mar 2027
-        {"name": "Fall 2027", "start": base_date + timedelta(days=600)}, # Sep 2027
+        {"name": "Fall 2026", "start": base_date + timedelta(days=240)},
+        {"name": "Spring 2027", "start": base_date + timedelta(days=420)},
+        {"name": "Fall 2027", "start": base_date + timedelta(days=600)},
     ]
-    
     fleet = get_fleet_data()
-    
     for _, site in fleet.iterrows():
-        # 1. Handle CURRENT Status
         if site['status'] == 'Planned Outage':
-            # Current active outage
-            schedule.append({
-                "Site": site['name'],
-                "Start": base_date - timedelta(days=15),
-                "Finish": base_date + timedelta(days=30),
-                "Type": "Active Planned",
-                "Duration": "45 Days"
-            })
+            schedule.append({"Site": site['name'], "Start": base_date - timedelta(days=15), "Finish": base_date + timedelta(days=30), "Type": "Active Planned", "Duration": "45 Days"})
         elif site['status'] == 'Unplanned Maintenance':
-             # Current forced outage
-             schedule.append({
-                "Site": site['name'],
-                "Start": base_date - timedelta(days=2),
-                "Finish": base_date + timedelta(days=5),
-                "Type": "Active Unplanned",
-                "Duration": "7 Days"
-            })
+             schedule.append({"Site": site['name'], "Start": base_date - timedelta(days=2), "Finish": base_date + timedelta(days=5), "Type": "Active Unplanned", "Duration": "7 Days"})
         
-        # 2. Generate FUTURE Outages for EVERYONE
-        # Pick a random season for the next major outage
         future_season = random.choice(seasons)
-        duration_days = random.choice([28, 45, 120]) # Minor, Standard, Major
+        duration_days = random.choice([28, 45, 120])
         outage_type = "Major Overhaul" if duration_days == 120 else "Planned Maintenance"
-        
-        # Stagger starts slightly so they don't all align perfectly
         stagger = random.randint(-15, 15)
         start_date = future_season['start'] + timedelta(days=stagger)
         
-        schedule.append({
-            "Site": site['name'],
-            "Start": start_date,
-            "Finish": start_date + timedelta(days=duration_days),
-            "Type": "Future Planned",
-            "Duration": f"{duration_days} Days ({outage_type})"
-        })
-        
+        schedule.append({"Site": site['name'], "Start": start_date, "Finish": start_date + timedelta(days=duration_days), "Type": "Future Planned", "Duration": f"{duration_days} Days ({outage_type})"})
     return pd.DataFrame(schedule)
 
 @st.cache_data
@@ -168,7 +163,6 @@ def get_planned_projects():
         est_labor = random.randint(20000, 100000)
         est_mat = random.randint(10000, 150000)
         status = random.choice(['Not Started', 'In Progress', 'In Progress', 'Completed'])
-        
         pct = 1.0 if status == 'Completed' else (random.uniform(0.1, 0.9) if status == 'In Progress' else 0.0)
             
         projects.append({
@@ -199,14 +193,11 @@ df_projects = get_planned_projects()
 
 # --- FUNCTION FOR STATUS COLORING ---
 def color_status(val):
-    color = 'grey'
-    if val == 'Completed':
-        color = '#064e3b' # Dark Green
-    elif val == 'In Progress':
-        color = '#78350f' # Dark Amber
-    elif val == 'Not Started':
-        color = '#7f1d1d' # Dark Red
-    return f'background-color: {color}; color: white; border-radius: 4px; padding: 4px;'
+    color = '#94a3b8'
+    if val == 'Completed': color = '#059669'
+    elif val == 'In Progress': color = '#d97706'
+    elif val == 'Not Started': color = '#dc2626'
+    return f'background-color: {color}; color: white; border-radius: 4px; padding: 4px 8px; font-weight: bold;'
 
 # --- VIEW 1: FLEET COMMAND ---
 if st.session_state.view == 'Fleet':
@@ -262,33 +253,21 @@ if st.session_state.view == 'Fleet':
                 navigate('Detail', row.to_dict())
                 st.rerun()
 
-    # 3. 2-YEAR LOOKAHEAD (NEW)
+    # 3. 2-YEAR LOOKAHEAD
     st.markdown("---")
     st.markdown("### 🗓️ 2-Year Fleet Schedule (2026-2027)")
     
-    # Define Color Map for Schedule
-    color_map = {
-        "Active Planned": "#d97706",    # Amber
-        "Active Unplanned": "#dc2626",  # Red
-        "Future Planned": "#059669"     # Green
-    }
+    color_map = {"Active Planned": "#d97706", "Active Unplanned": "#dc2626", "Future Planned": "#059669"}
     
     fig_schedule = px.timeline(
-        df_schedule, 
-        x_start="Start", 
-        x_end="Finish", 
-        y="Site", 
-        color="Type", 
-        color_discrete_map=color_map,
-        hover_data=["Duration"],
-        template="plotly_dark",
+        df_schedule, x_start="Start", x_end="Finish", y="Site", color="Type", 
+        color_discrete_map=color_map, hover_data=["Duration"],
+        template="plotly_white", # CHANGED TO WHITE
         height=400
     )
-    fig_schedule.update_yaxes(autorange="reversed", title="") # List top to bottom
+    fig_schedule.update_yaxes(autorange="reversed", title="")
     fig_schedule.update_xaxes(title="Timeline")
-    
-    # Add 'Today' line
-    fig_schedule.add_vline(x=datetime.now().timestamp() * 1000, line_width=2, line_dash="dash", line_color="white", annotation_text="Today")
+    fig_schedule.add_vline(x=datetime.now().timestamp() * 1000, line_width=2, line_dash="dash", line_color="black", annotation_text="Today")
     
     st.plotly_chart(fig_schedule, use_container_width=True)
 
@@ -320,22 +299,17 @@ elif st.session_state.view == 'Detail':
             c1, c2 = st.columns(2)
             with c1:
                 grp = df_projects.groupby('system')[['actual_labor', 'actual_mat']].sum().reset_index()
-                fig = px.bar(grp, x='system', y=['actual_labor', 'actual_mat'], template='plotly_dark')
+                fig = px.bar(grp, x='system', y=['actual_labor', 'actual_mat'], template='plotly_white')
                 st.plotly_chart(fig, use_container_width=True)
             with c2:
                 st.dataframe(df_projects['status'].value_counts(), use_container_width=True)
                 
         with t2:
             st.markdown("### 🔍 Asset Hierarchy Manager")
-            
             f1, f2, f3 = st.columns([1, 1, 2])
-            with f1:
-                sel_sys = st.selectbox("1. Select System", df_projects['system'].unique())
-            with f2:
-                avail_sub = df_projects[df_projects['system'] == sel_sys]['subsystem'].unique()
-                sel_sub = st.selectbox("2. Select Sub-System", avail_sub)
+            with f1: sel_sys = st.selectbox("1. Select System", df_projects['system'].unique())
+            with f2: avail_sub = df_projects[df_projects['system'] == sel_sys]['subsystem'].unique(); sel_sub = st.selectbox("2. Select Sub-System", avail_sub)
             
-            # Filter Data
             subset = df_projects[(df_projects['system'] == sel_sys) & (df_projects['subsystem'] == sel_sub)]
             
             with f3:
@@ -345,9 +319,8 @@ elif st.session_state.view == 'Detail':
                     fig_pie = px.pie(pie_data, values='Count', names='Status', color='Status',
                                      color_discrete_map={'Completed':'#059669', 'In Progress':'#d97706', 'Not Started':'#dc2626'},
                                      hole=0.5)
-                    fig_pie.update_layout(template="plotly_dark", margin=dict(t=0, b=0, l=0, r=0), height=100, showlegend=False)
+                    fig_pie.update_layout(template="plotly_white", margin=dict(t=0, b=0, l=0, r=0), height=100, showlegend=False)
                     fig_pie.update_traces(textposition='inside', textinfo='value')
-                    
                     pc1, pc2 = st.columns([1, 2])
                     with pc1: st.plotly_chart(fig_pie, use_container_width=True)
                     with pc2: st.caption(f"**{sel_sub}** Breakdown"); st.caption(f"Total Tasks: {len(subset)}")
@@ -370,14 +343,11 @@ elif st.session_state.view == 'Detail':
             st.markdown("### 💰 Cost Control Tower")
             fc1, fc2 = st.columns([1, 3])
             with fc1: status_filter = st.selectbox("Filter by Status", ["All", "In Progress", "Completed", "Not Started"])
-            
             fin_view = df_projects.copy()
             fin_view['Total Budget'] = fin_view['budget_labor'] + fin_view['budget_mat']
             fin_view['Total Actual'] = fin_view['actual_labor'] + fin_view['actual_mat']
             fin_view['Variance'] = fin_view['Total Budget'] - fin_view['Total Actual']
-            
             if status_filter != "All": fin_view = fin_view[fin_view['status'] == status_filter]
-            
             st.dataframe(
                 fin_view[['full_name', 'status', 'Total Budget', 'Total Actual', 'Variance']].style.map(color_status, subset=['status']),
                 column_config={"full_name": "Project Name", "Total Budget": st.column_config.NumberColumn(format="$%d"), "Total Actual": st.column_config.NumberColumn(format="$%d"), "Variance": st.column_config.NumberColumn(format="$%d")},
@@ -385,7 +355,7 @@ elif st.session_state.view == 'Detail':
             )
 
         with t4:
-            fig_gantt = px.timeline(df_projects.sort_values('Start Date'), x_start="Start Date", x_end="End Date", y="name", color="system", template="plotly_dark")
+            fig_gantt = px.timeline(df_projects.sort_values('Start Date'), x_start="Start Date", x_end="End Date", y="name", color="system", template="plotly_white")
             st.plotly_chart(fig_gantt, use_container_width=True)
 
     elif "Unplanned" in site['status']:
